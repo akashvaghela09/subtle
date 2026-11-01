@@ -22,7 +22,7 @@ out = Console()
 
 EPILOG = """\
 [bold]Quick start[/]
-  subtle                                  interactive mode (menus)
+  subtle  /  subtle ui <folder>           full-screen file browser → pick a file → transcribe
   subtle run episode.wav                  writes episode.srt next to the file
   subtle run ep.mp4 -f srt,vtt,txt -o subs/
   subtle run ep.wav -f all --lang en --prompt "Names: Zodiac, SFPD"
@@ -57,8 +57,8 @@ def root(ctx: typer.Context,
                                                is_eager=True, help="Show version.")] = False):
     if ctx.invoked_subcommand is None:
         if sys.stdin.isatty() and sys.stdout.isatty():
-            from subtle.tui import main_menu
-            main_menu()
+            from subtle.tui import run_tui
+            run_tui(Path.cwd())
         else:
             out.print(ctx.get_help())
 
@@ -86,9 +86,8 @@ def transcribe_files(files: list[Path], formats: list[str], out_dir: Optional[Pa
         err.print("[red]Whisper engine (faster-whisper) is not installed.[/] "
                   "Run [bold]subtle setup[/] or see [bold]subtle setup --guide[/].")
         raise typer.Exit(3)
-    from subtle.cues import build_cues
     from subtle.engine import Transcriber
-    from subtle.writers import WRITERS
+    from subtle.writers import write_all
 
     if not is_cached(model):
         err.print(f"[yellow]Model '{model}' isn't downloaded yet; downloading it now "
@@ -109,15 +108,8 @@ def transcribe_files(files: list[Path], formats: list[str], out_dir: Optional[Pa
                                 on_progress=lambda done, total: bar.update(
                                     task, completed=done / total if total else 1))
         res["source"], res["model"] = str(f), model
-        cues = build_cues(res["segments"], max_chars=max_chars, max_lines=max_lines,
-                          max_duration=max_duration, max_words=words)
-        dest = out_dir or f.parent
-        dest.mkdir(parents=True, exist_ok=True)
-        outputs = {}
-        for fmt in formats:
-            p = dest / f"{f.stem}.{fmt}"
-            p.write_text(WRITERS[fmt](cues, res), encoding="utf-8")
-            outputs[fmt] = str(p.resolve())
+        outputs, cues = write_all(res, formats, f, out_dir, max_chars=max_chars,
+                                  max_lines=max_lines, max_duration=max_duration, max_words=words)
         secs = round(time.time() - t0, 1)
         err.print(f"[green]✓[/] {f.name}: {res['duration']:.0f}s audio, lang={res['language']}, "
                   f"{len(cues)} cues, {secs}s")
@@ -171,6 +163,14 @@ def run(
         raise typer.Exit(1)
     if json_out:
         out.print_json(json.dumps({"ok": True, "files": results}))
+
+
+@app.command()
+def ui(path: Annotated[Path, typer.Argument(help="Folder to start in.", exists=True,
+                                            file_okay=False)] = Path(".")):
+    """Full-screen file browser: pick an audio/video file and transcribe it (same as bare `subtle`)."""
+    from subtle.tui import run_tui
+    run_tui(path.resolve())
 
 
 @app.command()

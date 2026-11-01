@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import Optional
 
-from subtle.cues import Cue
+from subtle.cues import Cue, build_cues
 
 FORMATS = {
     "srt":  "SubRip captions. Upload to YouTube Studio > Subtitles. The default.",
@@ -85,3 +87,17 @@ def ass(cues: list[Cue], result: dict) -> str:
 
 
 WRITERS = {"srt": srt, "vtt": vtt, "txt": txt, "json": json_, "ass": ass}
+
+
+def write_all(res: dict, formats: list[str], src: Path, out_dir: Optional[Path] = None,
+              **shaping) -> tuple[dict[str, str], list[Cue]]:
+    """Build cues from a transcription result and write each format next to src (or out_dir)."""
+    cues = build_cues(res["segments"], **shaping)
+    dest = out_dir or src.parent
+    dest.mkdir(parents=True, exist_ok=True)
+    outputs = {}
+    for fmt in formats:
+        p = dest / f"{src.stem}.{fmt}"
+        p.write_text(WRITERS[fmt](cues, res), encoding="utf-8")
+        outputs[fmt] = str(p.resolve())
+    return outputs, cues

@@ -22,13 +22,27 @@ If something can't be installed automatically, `subtle setup --guide` (also in
 
 | Command | What it does |
 |---|---|
-| `subtle` | Interactive mode: pick the file, formats, caption style and model from menus |
+| `subtle` / `subtle ui [folder]` | Full-screen file browser → pick an audio/video file → options → transcribe |
 | `subtle run <files…>` | Transcribe and write subtitle files |
 | `subtle doctor [--json]` | Health check: Python, Whisper engine, model, ffmpeg, GPU, disk |
 | `subtle setup [-y] [--only engine,model,ffmpeg,cuda]` | Install anything missing |
 | `subtle setup --guide` | Manual setup instructions |
 | `subtle formats` / `subtle models` | List output formats / Whisper models |
 | `subtle --help` | Full reference |
+
+### Interactive mode
+
+Run `subtle` in any folder. It opens a full-screen browser in the same style as tubeline.
+
+| Screen | Keys |
+|---|---|
+| **Files**: folders, audio (♪) and video (▶); `✓ srt` marks files already done | `Enter` open · `←`/`Backspace` up · `/` filter · `a` show other files · `.` hidden · `~` home · `^D` doctor · `q` quit |
+| **Options**: formats, style (Standard / Compact / Shorts), model, language, names hint, save folder | `↑↓` field · `←→` change · `space` toggle format · `e` type a value · `Enter` transcribe · `Esc` back |
+| **Transcribe**: progress bar with time left; captions appear live | `Esc` cancel |
+| **Done**: output paths and the YouTube upload hint | `Enter` back to files · `n` next file · `o` open folder |
+
+The model loads once per session, so later files start immediately. Your last options are
+remembered in `~/.config/subtle/tui.json`.
 
 ### Examples
 
@@ -87,7 +101,7 @@ subtle run a.wav b.mp3 -f srt,json --json-out
 ```
 src/subtle/
   cli.py      commands, help text, run pipeline
-  tui.py      interactive menus
+  tui.py      full-screen browser (Textual): files → options → run → done, plus doctor
   engine.py   faster-whisper wrapper, ffmpeg decoding, GPU detect + CPU fallback
   cues.py     words → readable caption cues
   writers.py  srt / vtt / txt / json / ass

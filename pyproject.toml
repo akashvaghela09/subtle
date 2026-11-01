@@ -9,7 +9,7 @@ dependencies = [
     "av<19",  # PyAV 19 removed an argument faster-whisper's fallback decoder uses
     "typer>=0.12",
     "rich>=13",
-    "questionary>=2.0",
+    "textual>=3",
 ]
 
 [project.scripts]

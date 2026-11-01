@@ -78,6 +78,10 @@ def load_audio(path: str):
     return decode_audio(path, sampling_rate=SAMPLE_RATE)
 
 
+class Cancelled(Exception):
+    """Raised by a callback to stop a transcription early."""
+
+
 class Transcriber:
     def __init__(self, model: str, device: str = "auto", compute: Optional[str] = None,
                  warn: Callable[[str], None] = print):
@@ -95,31 +99,44 @@ class Transcriber:
 
     def transcribe(self, path: str, language: Optional[str] = None, prompt: Optional[str] = None,
                    beam: int = 5, vad: bool = True,
-                   on_progress: Optional[Callable[[float, float], None]] = None) -> dict:
+                   on_progress: Optional[Callable[[float, float], None]] = None,
+                   on_segment: Optional[Callable[[dict], None]] = None) -> dict:
+        """on_segment gets each finished segment; raise Cancelled from it to stop early."""
         audio = load_audio(path)
         try:
-            return self._run(audio, language, prompt, beam, vad, on_progress)
+            return self._run(audio, language, prompt, beam, vad, on_progress, on_segment)
         except RuntimeError as e:
             if self.device != "cuda":
                 raise
             self.warn(f"GPU failed ({str(e).splitlines()[0]}); retrying on CPU. "
                       "Run `subtle doctor` to fix GPU setup.")
             self._load("cpu")
-            return self._run(audio, language, prompt, beam, vad, on_progress)
+            return self._run(audio, language, prompt, beam, vad, on_progress, on_segment)
 
-    def _run(self, path, language, prompt, beam, vad, on_progress) -> dict:
+    def _run(self, path, language, prompt, beam, vad, on_progress, on_segment) -> dict:
         seg_iter, info = self.model.transcribe(
             path, language=language, initial_prompt=prompt, beam_size=beam,
             vad_filter=vad, word_timestamps=True, condition_on_previous_text=False,
         )
         segments = []
         for s in seg_iter:
-            segments.append({
-                "start": round(s.start, 3), "end": round(s.end, 3), "text": s.text.strip(),
-                "words": [{"start": round(w.start, 3), "end": round(w.end, 3),
-                           "word": w.word.strip(), "prob": round(w.probability, 3)}
-                          for w in (s.words or []) if w.word.strip()],
-            })
+            words: list[dict] = []
+            for w in s.words or []:
+                if not w.word.strip():
+                    continue
+                # Whisper splits tokens like "4" ",000" or "9" ".42"; a piece without a
+                # leading space continues the previous word.
+                if words and not w.word.startswith(" "):
+                    words[-1]["word"] += w.word.strip()
+                    words[-1]["end"] = round(w.end, 3)
+                    words[-1]["prob"] = round(min(words[-1]["prob"], w.probability), 3)
+                    continue
+                words.append({"start": round(w.start, 3), "end": round(w.end, 3),
+                              "word": w.word.strip(), "prob": round(w.probability, 3)})
+            segments.append({"start": round(s.start, 3), "end": round(s.end, 3),
+                             "text": s.text.strip(), "words": words})
+            if on_segment:
+                on_segment(segments[-1])
             if on_progress:
                 on_progress(s.end, info.duration)
         if on_progress:
