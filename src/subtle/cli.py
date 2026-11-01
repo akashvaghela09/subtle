@@ -348,7 +348,7 @@ each input file.
 
 ```
 subtle run /in/ep1.mp4 -f srt,vtt -o /out/ep1-subs --json-out
-# -> {"ok": true, "files": [{"outputs": {"srt": "/out/ep1-subs/ep1.srt", "vtt": "/out/ep1-subs/ep1.vtt"}, ...}]}
+# -> {{"ok": true, "files": [{{"outputs": {{"srt": "/out/ep1-subs/ep1.srt", "vtt": "/out/ep1-subs/ep1.vtt"}}, ...}}]}}
 ```
 
 ## Models (`-m`)
