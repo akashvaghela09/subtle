@@ -50,8 +50,9 @@ def run_checks(model: str = DEFAULT_MODEL) -> list[Check]:
         checks.append(Check("model", True, True, f"'{model}' downloaded"))
     else:
         size = MODELS[model][1] if model in MODELS else "?"
-        checks.append(Check("model", False, True, f"'{model}' not downloaded ({size}); "
-                            "otherwise it downloads automatically on first run", "model"))
+        # not blocking: faster-whisper downloads it automatically on first run
+        checks.append(Check("model", False, False, f"'{model}' not downloaded yet ({size}); "
+                            "downloads automatically on first run", "model"))
 
     ff = shutil.which("ffmpeg")
     if ff:
@@ -148,7 +149,7 @@ Run `subtle doctor` after each step to confirm it worked.
 ## 3. Whisper model
   Downloads automatically on the first `subtle run`. To fetch it ahead of time:
     subtle setup --only model
-  Offline machine: copy ~/.cache/huggingface/hub/models--deepdml--faster-whisper-large-v3-turbo-ct2
+  Offline machine: copy ~/.cache/huggingface/hub/models--Systran--faster-whisper-base (or another model)
   from a machine that already has it into the same path.
   You can also point --model at any local folder that contains model.bin.
 

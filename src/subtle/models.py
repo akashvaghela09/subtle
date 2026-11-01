@@ -4,17 +4,18 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-DEFAULT_MODEL = "turbo"
+DEFAULT_MODEL = "base"
 
-# alias -> (huggingface repo, download size, note)
+# alias -> (huggingface repo, download size, note), smallest/fastest first
 MODELS: dict[str, tuple[str, str, str]] = {
-    "turbo":    ("deepdml/faster-whisper-large-v3-turbo-ct2", "1.6 GB", "best speed/accuracy, multilingual (default)"),
-    "large-v3": ("Systran/faster-whisper-large-v3", "3.1 GB", "highest accuracy, slowest"),
-    "medium":   ("Systran/faster-whisper-medium", "1.5 GB", "multilingual, slower than turbo"),
-    "small":    ("Systran/faster-whisper-small", "480 MB", "multilingual, fast"),
-    "small.en": ("Systran/faster-whisper-small.en", "480 MB", "English only, fast"),
-    "base.en":  ("Systran/faster-whisper-base.en", "145 MB", "English only, very fast, rough"),
-    "tiny":     ("Systran/faster-whisper-tiny", "75 MB", "multilingual, quick tests only"),
+    "tiny":     ("Systran/faster-whisper-tiny", "75 MB", "multilingual, fastest, quick tests only"),
+    "base":     ("Systran/faster-whisper-base", "145 MB", "multilingual, very fast, decent"),
+    "base.en":  ("Systran/faster-whisper-base.en", "145 MB", "English only, very fast, a bit better than base for English"),
+    "small":    ("Systran/faster-whisper-small", "480 MB", "multilingual, fast, good"),
+    "small.en": ("Systran/faster-whisper-small.en", "480 MB", "English only, fast, good"),
+    "medium":   ("Systran/faster-whisper-medium", "1.5 GB", "multilingual, slow, very good"),
+    "turbo":    ("deepdml/faster-whisper-large-v3-turbo-ct2", "1.6 GB", "multilingual, best speed/accuracy balance"),
+    "large-v3": ("Systran/faster-whisper-large-v3", "3.1 GB", "multilingual, highest accuracy, slowest"),
 }
 
 

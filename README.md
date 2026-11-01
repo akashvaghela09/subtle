@@ -3,6 +3,9 @@
 Turn any audio or video file into YouTube-ready subtitle files. It runs locally on
 Whisper (faster-whisper), works offline, and needs no API keys.
 
+**AI agents: run `subtle docs`** for the complete reference: every command, option, model,
+format, JSON shape and exit code.
+
 ```
 subtle run episode.wav            # → episode.srt, ready to upload to YouTube Studio
 ```
@@ -27,8 +30,9 @@ If something can't be installed automatically, `subtle setup --guide` (also in
 | `subtle doctor [--json]` | Health check: Python, Whisper engine, model, ffmpeg, GPU, disk |
 | `subtle setup [-y] [--only engine,model,ffmpeg,cuda]` | Install anything missing |
 | `subtle setup --guide` | Manual setup instructions |
-| `subtle formats` / `subtle models` | List output formats / Whisper models |
-| `subtle --help` | Full reference |
+| `subtle models [--json]` / `subtle formats [--json]` | List Whisper models / output formats |
+| `subtle docs` | Full reference in one page (for AI agents and scripts) |
+| `subtle --help` | Command overview; `subtle run --help` for every option |
 
 ### Interactive mode
 
@@ -51,9 +55,24 @@ subtle run ep1.wav                               # SRT next to the input
 subtle run ep1.mp4 -f srt,vtt,txt -o subs/       # several formats, custom folder
 subtle run ep1.wav -f all --lang en              # every format, skip language detection
 subtle run ep1.wav -p "Names: Zodiac, SFPD"      # help Whisper spell names
+subtle run ep1.wav -m turbo                      # choose a model: tiny, base, small, turbo… (default: base)
 subtle run short.mp4 -f ass --words 3            # Shorts-style 3-word captions
 ffmpeg -i short.mp4 -vf ass=short.ass out.mp4    # burn those captions into the video
 ```
+
+### Models (`-m`)
+
+| Model | Size | Notes |
+|---|---|---|
+| `tiny` | 75 MB | fastest, quick tests only |
+| **`base`** (default) | 145 MB | very fast, decent; fine for clean voiceover |
+| `base.en` / `small.en` | 145 / 480 MB | English-only variants, a little more accurate for English |
+| `small` | 480 MB | fast, good |
+| `medium` | 1.5 GB | slow, very good |
+| `turbo` | 1.6 GB | best speed/accuracy balance; use for noisy audio, accents or names |
+| `large-v3` | 3.1 GB | highest accuracy, slowest |
+
+Models download automatically the first time they're used.
 
 ### Output formats (`-f`)
 
@@ -88,13 +107,15 @@ subtle run a.wav b.mp3 -f srt,json --json-out
 - No prompts are shown when arguments are given.
 - Exit codes: `0` ok · `1` transcription error · `2` bad arguments · `3` missing dependency.
 
-## Performance (GTX 1650, `turbo` model, 3 min of audio)
+## Performance (GTX 1650)
 
-| Device | Time |
+| Setup | Time |
 |---|---|
-| GPU, `int8_float16` (default on GPU) | ~22 s |
-| GPU, `float16` | ~74 s |
-| CPU, `int8`, 16 threads | ~84 s |
+| `base`, GPU, 27 s clip | ~1.2 s |
+| `turbo`, GPU, 27 s clip | ~4.7 s |
+| `turbo`, GPU `int8_float16` (default), 3 min | ~22 s |
+| `turbo`, GPU `float16`, 3 min | ~74 s |
+| `turbo`, CPU `int8` with 16 threads, 3 min | ~84 s |
 
 ## Layout
 

@@ -420,7 +420,7 @@ class Options(Base):
         if not self.duration:
             return ""
         gpu = self.app.gpu_ready
-        factor = {"turbo": 0.13, "large-v3": 0.35, "medium": 0.25, "small": 0.06, "small.en": 0.06,
+        factor = {"base": 0.03, "turbo": 0.13, "large-v3": 0.35, "medium": 0.25, "small": 0.06, "small.en": 0.06,
                   "base.en": 0.03, "tiny": 0.02}.get(self.o.model, 0.2) * (1 if gpu else 3.5)
         secs = max(2, self.duration * factor)
         return f"≈ {human_dur(secs)} on {'GPU' if gpu else 'CPU'}"

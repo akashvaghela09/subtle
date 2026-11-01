@@ -26,10 +26,12 @@ EPILOG = """\
   subtle run episode.wav                  writes episode.srt next to the file
   subtle run ep.mp4 -f srt,vtt,txt -o subs/
   subtle run ep.wav -f all --lang en --prompt "Names: Zodiac, SFPD"
+  subtle run ep.wav -m turbo              pick a model: tiny, base (default), small, turbo… (subtle models)
   subtle run short.mp4 -f ass --words 3   Shorts-style 1-3 word captions
   subtle doctor  /  subtle setup          check / fix the system
 
-[bold]For AI agents & scripts[/]
+[bold]For AI agents & scripts[/]  (full reference: [bold]subtle docs[/])
+  0. `subtle docs`  ->  every command, option, model, format and JSON shape in one page
   1. `subtle doctor --json`  ->  {"ready": true|false, "checks": [...]}
   2. `subtle run <files> -f <fmts> --json-out`  ->  stdout is JSON:
      {"ok": true, "files": [{"input", "outputs": {fmt: path}, "language", "duration", "cues", "seconds"}]}
@@ -212,7 +214,7 @@ def setup(
     """Install missing components automatically (asks first). Falls back to the manual guide."""
     from subtle.doctor import GUIDE, download_model, plan_fixes, run_checks
     if guide:
-        out.print(GUIDE, markup=False, highlight=False)
+        sys.stdout.write(GUIDE)
         return
     plan = plan_fixes(run_checks(model), model)
     if only:
@@ -246,15 +248,18 @@ def setup(
             failed.append(key)
     if failed:
         err.print(f"\n[yellow]Some steps failed ({', '.join(failed)}). Manual steps follow:[/]\n")
-        out.print(GUIDE, markup=False, highlight=False)
+        sys.stdout.write(GUIDE)
         raise typer.Exit(3)
     err.print("\n[green]Setup complete.[/] Run [bold]subtle doctor[/] to verify.")
 
 
 @app.command()
-def formats():
+def formats(as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False):
     """List output formats and what each is for."""
     from subtle.writers import FORMATS
+    if as_json:
+        out.print_json(json.dumps(FORMATS))
+        return
     t = Table(title="Output formats  (-f srt,vtt,… or -f all)")
     t.add_column("format", style="bold"), t.add_column("use")
     for k, v in FORMATS.items():
@@ -263,8 +268,13 @@ def formats():
 
 
 @app.command()
-def models():
-    """List Whisper models and which are already downloaded."""
+def models(as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False):
+    """List Whisper models (-m), their size, and which are already downloaded."""
+    if as_json:
+        out.print_json(json.dumps({"default": DEFAULT_MODEL, "models": [
+            {"name": n, "repo": r, "size": sz, "notes": note, "downloaded": is_cached(n)}
+            for n, (r, sz, note) in MODELS.items()]}))
+        return
     t = Table(title="Whisper models  (-m <name>)")
     for col in ("name", "downloaded", "size", "notes"):
         t.add_column(col)
@@ -272,7 +282,113 @@ def models():
         t.add_row(name + (" *" if name == DEFAULT_MODEL else ""),
                   "[green]yes[/]" if is_cached(name) else "no", size, note)
     out.print(t)
-    out.print("[dim]* default. Any faster-whisper HF repo id or local model folder also works.[/]")
+    out.print("[dim]* default. Any faster-whisper HF repo id or local model folder also works. "
+              "Not downloaded = fetched automatically on first use.[/]")
+
+
+def reference() -> str:
+    """The full CLI reference printed by `subtle docs`, built from the live model/format lists."""
+    from subtle.writers import FORMATS
+    models_tbl = "\n".join(f"| `{n}`{' (default)' if n == DEFAULT_MODEL else ''} | {sz} | {note} |"
+                           for n, (_, sz, note) in MODELS.items())
+    fmts_tbl = "\n".join(f"| `{k}` | {v} |" for k, v in FORMATS.items())
+    return f"""# subtle {__version__}: CLI reference
+
+subtle turns audio/video files into subtitle files for YouTube, using local Whisper
+(faster-whisper). It works offline and needs no API keys. Input: any format ffmpeg reads
+(wav, mp3, m4a, flac, mp4, mkv, mov, webm…).
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `subtle run <files…> [options]` | Transcribe one or more files and write subtitle files |
+| `subtle doctor [--json] [-m MODEL]` | Check dependencies; exit 0 = ready, 3 = something required is missing |
+| `subtle setup [-y] [--only engine,model,ffmpeg,cuda] [-m MODEL]` | Install missing pieces (`-y` = no prompt) |
+| `subtle setup --guide` | Print manual install steps |
+| `subtle models [--json]` | List models and whether each is downloaded |
+| `subtle formats [--json]` | List output formats |
+| `subtle docs` | Print this reference |
+| `subtle` / `subtle ui [DIR]` | Interactive full-screen file browser (people only; needs a terminal) |
+
+## `subtle run` options
+
+| Option | Default | Meaning |
+|---|---|---|
+| `-f, --format LIST` | `srt` | Comma list of `{",".join(FORMATS)}`, or `all` |
+| `-o, --out DIR` | next to input | Output folder; files are named `<input-stem>.<format>` and overwritten if they exist |
+| `-m, --model NAME` | `{DEFAULT_MODEL}` | Model alias (below), a Hugging Face repo id, or a local model folder |
+| `-l, --lang CODE` | auto-detect | Spoken language: `en`, `hi`, `es`, … |
+| `-p, --prompt TEXT` | none | Hint for spelling names/jargon, e.g. `"Names: Zodiac, SFPD"` |
+| `-w, --words N` | off | Shorts mode: N words per caption, single line |
+| `--max-chars N` | 42 | Max characters per caption line |
+| `--max-lines N` | 2 | Max lines per caption |
+| `--max-duration S` | 6.0 | Max seconds a caption stays on screen |
+| `--device auto/cuda/cpu` | auto | GPU when CUDA works, otherwise CPU (falls back to CPU automatically) |
+| `--compute TYPE` | int8_float16 (GPU) / int8 (CPU) | CTranslate2 compute type |
+| `--beam N` | 5 | Beam size |
+| `--vad / --no-vad` | on | Skip silence and music |
+| `--json-out` | off | Print a JSON result on stdout |
+
+## Models (`-m`)
+
+| Name | Download | Notes |
+|---|---|---|
+{models_tbl}
+
+A model that isn't downloaded is fetched automatically on first use, or ahead of time with
+`subtle setup --only model -m NAME`.
+
+## Formats (`-f`)
+
+| Format | Use |
+|---|---|
+{fmts_tbl}
+
+## For AI agents and scripts
+
+- Commands never prompt when given arguments. Only bare `subtle` / `subtle ui` is interactive.
+- stdout carries data only; progress and logs go to stderr.
+- Exit codes: `0` ok · `1` transcription failed · `2` bad arguments · `3` missing dependency.
+
+Recommended flow:
+
+```
+subtle doctor --json          # {{"ready": bool, "checks": [{{"name","ok","required","status","fix"}}]}}
+subtle setup -y               # only if ready is false
+subtle run in.mp4 -f srt,json -m {DEFAULT_MODEL} --json-out
+```
+
+`--json-out` result:
+
+```
+{{"ok": true, "files": [{{"input": "/abs/in.mp4",
+   "outputs": {{"srt": "/abs/in.srt", "json": "/abs/in.json"}},
+   "language": "en", "duration": 30.1, "cues": 10, "seconds": 4.7}}]}}
+{{"ok": false, "error": "message"}}      # on failure (exit 1)
+```
+
+The `json` format file contains `language`, `duration`, `segments[]` (`start`, `end`, `text`,
+`words[]` with `start`, `end`, `word`, `prob`) and `cues[]` (`start`, `end`, `text`). Times are
+in seconds.
+
+## Examples
+
+```
+subtle run ep1.wav                                  # ep1.srt next to the file
+subtle run ep1.mp4 -f all -o subs/                  # every format into subs/
+subtle run ep1.wav -m turbo -l en -p "Names: SFPD"  # best accuracy, English, name hint
+subtle run a.wav b.wav c.mp3 -m tiny                # batch run; the model loads once
+subtle run short.mp4 -f ass -w 3                    # Shorts captions, then:
+ffmpeg -i short.mp4 -vf ass=short.ass out.mp4       # burn them into the video
+```
+"""
+
+
+@app.command()
+def docs():
+    """Print the full reference (all commands, options, models, formats, JSON shapes). Best entry point for AI agents."""
+    sys.stdout.write(reference())
 
 
 def main():
