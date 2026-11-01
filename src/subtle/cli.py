@@ -33,8 +33,9 @@ EPILOG = """\
 [bold]For AI agents & scripts[/]  (full reference: [bold]subtle docs[/])
   0. `subtle docs`  ->  every command, option, model, format and JSON shape in one page
   1. `subtle doctor --json`  ->  {"ready": true|false, "checks": [...]}
-  2. `subtle run <files> -f <fmts> --json-out`  ->  stdout is JSON:
+  2. `subtle run <files> -f <fmts> -o <output-dir> --json-out`  ->  stdout is JSON:
      {"ok": true, "files": [{"input", "outputs": {fmt: path}, "language", "duration", "cues", "seconds"}]}
+  -o/--out sets the output folder (created if missing; default: next to the input).
   All progress/logs go to stderr. No prompts are shown when arguments are given.
   Exit codes: 0 ok · 1 transcription error · 2 bad arguments · 3 missing dependency
 """
@@ -129,7 +130,7 @@ def run(
     format: Annotated[str, typer.Option("-f", "--format",
                                         help="Comma list: srt,vtt,txt,json,ass, or 'all'.")] = "srt",
     out_dir: Annotated[Optional[Path], typer.Option("-o", "--out",
-                                                    help="Output folder \\[default: next to input].")] = None,
+                                                    help="Folder to write the output files to; created if missing \\[default: next to input].")] = None,
     model: Annotated[str, typer.Option("-m", "--model",
                                        help="Model alias (see `subtle models`), HF repo, or local path.")] = DEFAULT_MODEL,
     lang: Annotated[Optional[str], typer.Option("-l", "--lang",
@@ -316,7 +317,7 @@ subtle turns audio/video files into subtitle files for YouTube, using local Whis
 | Option | Default | Meaning |
 |---|---|---|
 | `-f, --format LIST` | `srt` | Comma list of `{",".join(FORMATS)}`, or `all` |
-| `-o, --out DIR` | next to input | Output folder; files are named `<input-stem>.<format>` and overwritten if they exist |
+| `-o, --out DIR` | next to input | Where to write the files (see "Output location" below) |
 | `-m, --model NAME` | `{DEFAULT_MODEL}` | Model alias (below), a Hugging Face repo id, or a local model folder |
 | `-l, --lang CODE` | auto-detect | Spoken language: `en`, `hi`, `es`, … |
 | `-p, --prompt TEXT` | none | Hint for spelling names/jargon, e.g. `"Names: Zodiac, SFPD"` |
@@ -329,6 +330,26 @@ subtle turns audio/video files into subtitle files for YouTube, using local Whis
 | `--beam N` | 5 | Beam size |
 | `--vad / --no-vad` | on | Skip silence and music |
 | `--json-out` | off | Print a JSON result on stdout |
+
+## Output location (`-o, --out`)
+
+Pass `-o DIR` to choose where the generated files go. Without it, files are written next to
+each input file.
+
+- The folder is created if it doesn't exist, including nested folders.
+- Files are named `<input-stem>.<format>`: `-o /work/subs` with `ep1.mp4` gives
+  `/work/subs/ep1.srt`, `/work/subs/ep1.json`, and so on.
+- Existing files with the same name are **overwritten**.
+- With several inputs, every output lands in the same `DIR`. Inputs that share a stem
+  (`a/ep1.wav`, `b/ep1.wav`) overwrite each other, so run them separately with different `-o`.
+- Relative paths are resolved against the current working directory.
+- `--json-out` reports the absolute path of every file written (`files[].outputs`). Read the
+  paths from there instead of building them yourself.
+
+```
+subtle run /in/ep1.mp4 -f srt,vtt -o /out/ep1-subs --json-out
+# -> {"ok": true, "files": [{"outputs": {"srt": "/out/ep1-subs/ep1.srt", "vtt": "/out/ep1-subs/ep1.vtt"}, ...}]}
+```
 
 ## Models (`-m`)
 
@@ -356,7 +377,7 @@ Recommended flow:
 ```
 subtle doctor --json          # {{"ready": bool, "checks": [{{"name","ok","required","status","fix"}}]}}
 subtle setup -y               # only if ready is false
-subtle run in.mp4 -f srt,json -m {DEFAULT_MODEL} --json-out
+subtle run in.mp4 -f srt,json -m {DEFAULT_MODEL} -o /path/to/output --json-out
 ```
 
 `--json-out` result:

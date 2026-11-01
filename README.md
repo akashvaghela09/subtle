@@ -103,6 +103,8 @@ subtle run a.wav b.mp3 -f srt,json --json-out
 # stdout: {"ok": true, "files": [{"input", "outputs": {"srt": path, …}, "language", "duration", "cues", "seconds"}]}
 ```
 
+- `-o DIR` sets where the files go (created if missing; default: next to the input). Read the
+  exact written paths from `files[].outputs` in the JSON.
 - Progress and logs go to **stderr**; stdout contains only the JSON.
 - No prompts are shown when arguments are given.
 - Exit codes: `0` ok · `1` transcription error · `2` bad arguments · `3` missing dependency.
