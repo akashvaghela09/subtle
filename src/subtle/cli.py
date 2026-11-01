@@ -26,7 +26,7 @@ EPILOG = """\
   subtle run episode.wav                  writes episode.srt next to the file
   subtle run ep.mp4 -f srt,vtt,txt -o subs/
   subtle run ep.wav -f all --lang en --prompt "Names: Zodiac, SFPD"
-  subtle run ep.wav -m turbo              pick a model: tiny, base (default), small, turbo… (subtle models)
+  subtle run ep.wav -m turbo              pick a model: base, small.en (default), turbo… (subtle models)
   subtle run short.mp4 -f ass --words 3   Shorts-style 1-3 word captions
   subtle doctor  /  subtle setup          check / fix the system
 
